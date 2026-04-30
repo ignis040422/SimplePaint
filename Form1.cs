@@ -1,102 +1,186 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace SimplePaint
 {
     public partial class Form1 : Form
     {
-        // 사용할 도형 타입을 정의 (직선, 사각형, 원)
+        // 사용할 도형 타입 정의
         enum ToolType { Line, Rectangle, Circle }
 
-        // 현재 선택된 도형 (기본값: 직선)
+        // 실제 그림이 저장되는 캔버스
+        private Bitmap canvasBitmap;
+
+        // Bitmap 위에 그림을 그리기 위한 도구
+        private Graphics canvasGraphics;
+
+        // 현재 마우스 드래그 중인지 확인하는 변수
+        private bool isDrawing = false;
+
+        // 마우스를 처음 누른 위치
+        private Point startPoint;
+
+        // 마우스를 움직이거나 뗀 위치
+        private Point endPoint;
+
+        // 현재 선택된 도형
         private ToolType currentTool = ToolType.Line;
 
-        // 현재 선택된 색상 (기본값: 검정)
+        // 현재 선택된 색상
         private Color currentColor = Color.Black;
 
-        // 현재 선 두께 (기본값: 2)
+        // 현재 선택된 선 두께
         private int currentLineWidth = 2;
 
         public Form1()
         {
             InitializeComponent();
 
-            // ComboBox에 색상 목록 추가
+            // 캔버스 생성
+            canvasBitmap = new Bitmap(picCanvas.Width, picCanvas.Height);
+            canvasGraphics = Graphics.FromImage(canvasBitmap);
+            canvasGraphics.Clear(Color.White);
+            picCanvas.Image = canvasBitmap;
+
+            // 마우스 이벤트 연결
+            picCanvas.MouseDown += PicCanvas_MouseDown;
+            picCanvas.MouseMove += PicCanvas_MouseMove;
+            picCanvas.MouseUp += PicCanvas_MouseUp;
+
+            // Paint 이벤트 연결
+            picCanvas.Paint += PicCanvas_Paint;
+
+            // 색상 목록 추가
             cmbColor.Items.Add("Black 검정");
             cmbColor.Items.Add("Red 빨강");
             cmbColor.Items.Add("Blue 파랑");
             cmbColor.Items.Add("Green 녹색");
-
-            // 기본 선택 색상 설정 (검정)
             cmbColor.SelectedIndex = 0;
 
-            // TrackBar 최소/최대값 설정 (선 두께)
+            // 선 두께 설정
             trbLineWidth.Minimum = 1;
             trbLineWidth.Maximum = 10;
-
-            // 기본 선 두께 설정
             trbLineWidth.Value = 2;
         }
 
-        // 직선 버튼 클릭 시 실행되는 이벤트
-        private void btnLine_Click(object sender, EventArgs e)
+        // 마우스를 눌렀을 때 실행
+        private void PicCanvas_MouseDown(object sender, MouseEventArgs e)
         {
-            // 현재 도형을 직선으로 변경
-            currentTool = ToolType.Line;
-
-            // 사용자에게 선택 상태 알림
-            MessageBox.Show("직선 선택");
+            isDrawing = true;
+            startPoint = e.Location;
+            endPoint = e.Location;
         }
 
-        // 사각형 버튼 클릭 시 실행되는 이벤트
-        private void btnRectangle_Click(object sender, EventArgs e)
+        // 마우스를 누른 상태로 움직일 때 실행
+        private void PicCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            // 현재 도형을 사각형으로 변경
-            currentTool = ToolType.Rectangle;
+            if (!isDrawing) return;
 
-            // 사용자에게 선택 상태 알림
-            MessageBox.Show("사각형 선택");
+            endPoint = e.Location;
+
+            // 미리보기 도형을 다시 그리기 위해 화면 갱신
+            picCanvas.Invalidate();
         }
 
-        // 원 버튼 클릭 시 실행되는 이벤트
-        private void btnCircle_Click(object sender, EventArgs e)
+        // 마우스에서 손을 뗐을 때 실행
+        private void PicCanvas_MouseUp(object sender, MouseEventArgs e)
         {
-            // 현재 도형을 원으로 변경
-            currentTool = ToolType.Circle;
+            if (!isDrawing) return;
 
-            // 사용자에게 선택 상태 알림
-            MessageBox.Show("원 선택");
-        }
+            isDrawing = false;
+            endPoint = e.Location;
 
-        // ComboBox에서 색상이 변경될 때 실행되는 이벤트
-        private void cmbColor_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            // 선택된 인덱스에 따라 색상 변경
-            switch (cmbColor.SelectedIndex)
+            // 최종 도형을 실제 Bitmap에 저장
+            using (Pen pen = new Pen(currentColor, currentLineWidth))
             {
-                case 0:
-                    currentColor = Color.Black; // 검정
+                DrawShape(canvasGraphics, pen, startPoint, endPoint);
+            }
+
+            picCanvas.Invalidate();
+        }
+
+        // 드래그 중일 때 점선 미리보기 표시
+        private void PicCanvas_Paint(object sender, PaintEventArgs e)
+        {
+            if (!isDrawing) return;
+
+            using (Pen previewPen = new Pen(currentColor, currentLineWidth))
+            {
+                previewPen.DashStyle = DashStyle.Dash;
+                DrawShape(e.Graphics, previewPen, startPoint, endPoint);
+            }
+        }
+
+        // 선택된 도형에 따라 그림 그리기
+        private void DrawShape(Graphics g, Pen pen, Point p1, Point p2)
+        {
+            Rectangle rect = GetRectangle(p1, p2);
+
+            switch (currentTool)
+            {
+                case ToolType.Line:
+                    g.DrawLine(pen, p1, p2);
                     break;
 
-                case 1:
-                    currentColor = Color.Red;   // 빨강
+                case ToolType.Rectangle:
+                    g.DrawRectangle(pen, rect);
                     break;
 
-                case 2:
-                    currentColor = Color.Blue;  // 파랑
-                    break;
-
-                case 3:
-                    currentColor = Color.Green; // 초록
+                case ToolType.Circle:
+                    g.DrawEllipse(pen, rect);
                     break;
             }
         }
 
-        // TrackBar 값이 변경될 때 실행되는 이벤트
+        // 두 점을 기준으로 사각형 영역 만들기
+        private Rectangle GetRectangle(Point p1, Point p2)
+        {
+            return new Rectangle(
+                Math.Min(p1.X, p2.X),
+                Math.Min(p1.Y, p2.Y),
+                Math.Abs(p1.X - p2.X),
+                Math.Abs(p1.Y - p2.Y)
+            );
+        }
+
+        private void btnLine_Click(object sender, EventArgs e)
+        {
+            currentTool = ToolType.Line;
+        }
+
+        private void btnRectangle_Click(object sender, EventArgs e)
+        {
+            currentTool = ToolType.Rectangle;
+        }
+
+        private void btnCircle_Click(object sender, EventArgs e)
+        {
+            currentTool = ToolType.Circle;
+        }
+
+        private void cmbColor_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (cmbColor.SelectedIndex)
+            {
+                case 0:
+                    currentColor = Color.Black;
+                    break;
+                case 1:
+                    currentColor = Color.Red;
+                    break;
+                case 2:
+                    currentColor = Color.Blue;
+                    break;
+                case 3:
+                    currentColor = Color.Green;
+                    break;
+            }
+        }
+
         private void trbLineWidth_ValueChanged(object sender, EventArgs e)
         {
-            // 현재 선 두께를 TrackBar 값으로 업데이트
             currentLineWidth = trbLineWidth.Value;
         }
     }
