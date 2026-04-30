@@ -108,13 +108,13 @@
             trbLineWidth.ValueChanged += trbLineWidth_ValueChanged;
 
             btnOpenFile.BackColor = System.Drawing.Color.LightYellow;
-            btnOpenFile.Enabled = false;
             btnOpenFile.Font = new System.Drawing.Font("맑은 고딕", 14F, System.Drawing.FontStyle.Bold);
             btnOpenFile.Location = new System.Drawing.Point(530, 105);
             btnOpenFile.Name = "btnOpenFile";
             btnOpenFile.Size = new System.Drawing.Size(70, 55);
             btnOpenFile.Text = "열기";
             btnOpenFile.UseVisualStyleBackColor = false;
+            btnOpenFile.Click += btnOpenFile_Click;
 
             btnSaveFile.BackColor = System.Drawing.Color.PaleTurquoise;
             btnSaveFile.Font = new System.Drawing.Font("맑은 고딕", 14F, System.Drawing.FontStyle.Bold);

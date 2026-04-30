@@ -183,5 +183,34 @@ namespace SimplePaint
                 MessageBox.Show("그림 저장 완료!");
             }
         }
+
+        private void btnOpenFile_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+
+            ofd.Title = "이미지 열기";
+            ofd.Filter = "이미지 파일|*.png;*.jpg;*.jpeg;*.bmp";
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                if (canvasGraphics != null)
+                {
+                    canvasGraphics.Dispose();
+                }
+
+                Image loadImage = Image.FromFile(ofd.FileName);
+
+                canvasBitmap = new Bitmap(loadImage);
+                canvasGraphics = Graphics.FromImage(canvasBitmap);
+
+                picCanvas.Width = canvasBitmap.Width;
+                picCanvas.Height = canvasBitmap.Height;
+
+                picCanvas.Image = canvasBitmap;
+                picCanvas.Invalidate();
+
+                MessageBox.Show("이미지 불러오기 완료!");
+            }
+        }
     }
 }
