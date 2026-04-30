@@ -12,6 +12,7 @@ namespace SimplePaint
 
         private Bitmap canvasBitmap;
         private Graphics canvasGraphics;
+
         private bool isDrawing = false;
         private Point startPoint;
         private Point endPoint;
@@ -20,14 +21,18 @@ namespace SimplePaint
         private Color currentColor = Color.Black;
         private int currentLineWidth = 2;
 
+        private float zoomScale = 1.0f;
+
         public Form1()
         {
             InitializeComponent();
 
-            canvasBitmap = new Bitmap(picCanvas.Width, picCanvas.Height);
+            canvasBitmap = new Bitmap(650, 360);
             canvasGraphics = Graphics.FromImage(canvasBitmap);
             canvasGraphics.Clear(Color.White);
+
             picCanvas.Image = canvasBitmap;
+            picCanvas.SizeMode = PictureBoxSizeMode.StretchImage;
 
             picCanvas.MouseDown += PicCanvas_MouseDown;
             picCanvas.MouseMove += PicCanvas_MouseMove;
@@ -43,20 +48,43 @@ namespace SimplePaint
             trbLineWidth.Minimum = 1;
             trbLineWidth.Maximum = 10;
             trbLineWidth.Value = 2;
+
+            trbZoom.Minimum = 50;
+            trbZoom.Maximum = 200;
+            trbZoom.Value = 100;
+
+            lblZoom.Text = "확대/축소 100%";
+        }
+
+        private Point ConvertToCanvasPoint(Point picturePoint)
+        {
+            return new Point(
+                (int)(picturePoint.X / zoomScale),
+                (int)(picturePoint.Y / zoomScale)
+            );
+        }
+
+        private void UpdatePictureBoxSize()
+        {
+            if (canvasBitmap == null) return;
+
+            picCanvas.Width = (int)(canvasBitmap.Width * zoomScale);
+            picCanvas.Height = (int)(canvasBitmap.Height * zoomScale);
+            picCanvas.Invalidate();
         }
 
         private void PicCanvas_MouseDown(object sender, MouseEventArgs e)
         {
             isDrawing = true;
-            startPoint = e.Location;
-            endPoint = e.Location;
+            startPoint = ConvertToCanvasPoint(e.Location);
+            endPoint = ConvertToCanvasPoint(e.Location);
         }
 
         private void PicCanvas_MouseMove(object sender, MouseEventArgs e)
         {
             if (!isDrawing) return;
 
-            endPoint = e.Location;
+            endPoint = ConvertToCanvasPoint(e.Location);
             picCanvas.Invalidate();
         }
 
@@ -65,7 +93,7 @@ namespace SimplePaint
             if (!isDrawing) return;
 
             isDrawing = false;
-            endPoint = e.Location;
+            endPoint = ConvertToCanvasPoint(e.Location);
 
             using (Pen pen = new Pen(currentColor, currentLineWidth))
             {
@@ -82,7 +110,18 @@ namespace SimplePaint
             using (Pen previewPen = new Pen(currentColor, currentLineWidth))
             {
                 previewPen.DashStyle = DashStyle.Dash;
-                DrawShape(e.Graphics, previewPen, startPoint, endPoint);
+
+                Point previewStart = new Point(
+                    (int)(startPoint.X * zoomScale),
+                    (int)(startPoint.Y * zoomScale)
+                );
+
+                Point previewEnd = new Point(
+                    (int)(endPoint.X * zoomScale),
+                    (int)(endPoint.Y * zoomScale)
+                );
+
+                DrawShape(e.Graphics, previewPen, previewStart, previewEnd);
             }
         }
 
@@ -155,6 +194,13 @@ namespace SimplePaint
             currentLineWidth = trbLineWidth.Value;
         }
 
+        private void trbZoom_ValueChanged(object sender, EventArgs e)
+        {
+            zoomScale = trbZoom.Value / 100.0f;
+            lblZoom.Text = "확대/축소 " + trbZoom.Value + "%";
+            UpdatePictureBoxSize();
+        }
+
         private void btnSaveFile_Click(object sender, EventArgs e)
         {
             SaveFileDialog sfd = new SaveFileDialog();
@@ -168,17 +214,11 @@ namespace SimplePaint
                 string ext = System.IO.Path.GetExtension(sfd.FileName).ToLower();
 
                 if (ext == ".jpg")
-                {
                     canvasBitmap.Save(sfd.FileName, ImageFormat.Jpeg);
-                }
                 else if (ext == ".bmp")
-                {
                     canvasBitmap.Save(sfd.FileName, ImageFormat.Bmp);
-                }
                 else
-                {
                     canvasBitmap.Save(sfd.FileName, ImageFormat.Png);
-                }
 
                 MessageBox.Show("그림 저장 완료!");
             }
@@ -194,20 +234,21 @@ namespace SimplePaint
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 if (canvasGraphics != null)
-                {
                     canvasGraphics.Dispose();
+
+                using (Image loadImage = Image.FromFile(ofd.FileName))
+                {
+                    canvasBitmap = new Bitmap(loadImage);
                 }
 
-                Image loadImage = Image.FromFile(ofd.FileName);
-
-                canvasBitmap = new Bitmap(loadImage);
                 canvasGraphics = Graphics.FromImage(canvasBitmap);
-
-                picCanvas.Width = canvasBitmap.Width;
-                picCanvas.Height = canvasBitmap.Height;
-
                 picCanvas.Image = canvasBitmap;
-                picCanvas.Invalidate();
+
+                zoomScale = 1.0f;
+                trbZoom.Value = 100;
+                lblZoom.Text = "확대/축소 100%";
+
+                UpdatePictureBoxSize();
 
                 MessageBox.Show("이미지 불러오기 완료!");
             }
